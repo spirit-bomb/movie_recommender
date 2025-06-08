@@ -4,26 +4,44 @@ import pandas as pd
 import os
 import gdown
 
-# Google Drive File IDs
-movie_dict_id = '18F0D8TiLhmkEomfiM82xfG0YNd3PPSxD'
-similarity_id = '1Sd67yDj9eVmiKuWh5jOsGYsLGsyckOvl'
 
-# Download if not already present
-if not os.path.exists('movie_dict.pkl'):
-    gdown.download(f'https://drive.google.com/uc?id={movie_dict_id}', 'movie_dict.pkl', quiet=False)
+@st.cache_resource
+def load_data():
+    # Google Drive File IDs
+    movie_dict_id = '18F0D8TiLhmkEomfiM82xfG0YNd3PPSxD'
+    similarity_id = '1Sd67yDj9eVmiKuWh5jOsGYsLGsyckOvl'
 
-if not os.path.exists('similarity.pkl'):
-    gdown.download(f'https://drive.google.com/uc?id={similarity_id}', 'similarity.pkl', quiet=False)
+    # Download files if they don't exist
+    if not os.path.exists('movie_dict.pkl'):
+        with st.spinner('Downloading movie dictionary...'):
+            gdown.download(
+                f'https://drive.google.com/uc?id={movie_dict_id}',
+                'movie_dict.pkl',
+                quiet=False
+            )
 
-# Load the data
-movies_dict = pickle.load(open('movie_dict.pkl', 'rb'))
-movies = pd.DataFrame(movies_dict)
-similarity = pickle.load(open('similarity.pkl', 'rb'))
+    if not os.path.exists('similarity.pkl'):
+        with st.spinner('Downloading similarity matrix...'):
+            gdown.download(
+                f'https://drive.google.com/uc?id={similarity_id}',
+                'similarity.pkl',
+                quiet=False
+            )
 
-# Streamlit UI
-st.title('Movie Recommender')
+    try:
+        movies_dict = pickle.load(open('movie_dict.pkl', 'rb'))
+        movies = pd.DataFrame(movies_dict)
+        similarity = pickle.load(open('similarity.pkl', 'rb'))
+        return movies, similarity
+    except (EOFError, FileNotFoundError) as e:
+        # If files are corrupted, remove them and retry download
+        if os.path.exists('movie_dict.pkl'):
+            os.remove('movie_dict.pkl')
+        if os.path.exists('similarity.pkl'):
+            os.remove('similarity.pkl')
+        st.error('Error loading files. Please refresh the page to retry download.')
+        st.stop()
 
-selected_movie_name = st.selectbox('Enter a movie name to get more recommendations', movies['title'].values)
 
 def recommend(movie):
     movie_index = movies[movies['title'] == movie].index[0]
@@ -34,7 +52,20 @@ def recommend(movie):
         recommended_movies.append(movies.iloc[i[0]].title)
     return recommended_movies
 
+
+# Load the data
+movies, similarity = load_data()
+
+# Streamlit UI
+st.title('Movie Recommender')
+
+selected_movie_name = st.selectbox(
+    'Enter a movie name to get more recommendations',
+    movies['title'].values
+)
+
 if st.button('Recommend'):
-    names = recommend(selected_movie_name)
-    for j in names:
-        st.write(j)
+    with st.spinner('Getting recommendations...'):
+        names = recommend(selected_movie_name)
+        for j in names:
+            st.write(j)
