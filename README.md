@@ -1,7 +1,7 @@
 # 🎬 Movie Recommendation System
 
 This repository contains a **Content-Based Movie Recommender System** built using:
-- 🐍 Python
+-  Python
 - 📊 Pandas, Scikit-learn
 - 📚 Natural Language Processing (NLP)
 - 🌐 Streamlit for web interface
